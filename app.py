@@ -130,5 +130,34 @@ async def info_tabela(nome_tabela):
             'erro': str(e)
         }), 500
 
+@app.route('/limpar-tabela/<nome_tabela>', methods=['POST'])
+async def limpar_tabela(nome_tabela):
+    try:
+        async with pool.acquire() as connection:
+            async with connection.cursor() as cursor:
+                # Verifica se a tabela existe
+                await cursor.execute(f"SHOW TABLES LIKE '{nome_tabela}'")
+                if not await cursor.fetchone():
+                    return jsonify({
+                        'status': 'Erro',
+                        'mensagem': f'A tabela {nome_tabela} não existe'
+                    }), 404
+
+                # Limpa os dados da tabela
+                await cursor.execute(f"TRUNCATE TABLE `{nome_tabela}`")
+            await connection.commit()
+            return jsonify({
+                'status': 'Sucesso',
+                'mensagem': f'Todos os dados da tabela {nome_tabela} foram removidos'
+            }), 200
+    except Exception as e:
+        print(f"Erro ao limpar tabela {nome_tabela}: {e}")
+        return jsonify({
+            'status': 'Erro',
+            'mensagem': f'Falha ao limpar os dados da tabela {nome_tabela}',
+            'erro': str(e)
+        }), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5003)
