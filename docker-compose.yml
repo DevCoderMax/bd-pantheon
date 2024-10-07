@@ -1,0 +1,19 @@
+services:
+  api_bd_pantheon:
+    build: .
+    ports:
+      - "5003:5003"  # Mapeando a porta 5003 da sua API Flask
+    networks:
+      - cloudflared-network
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://api_bd_pantheon:5003
+    depends_on:
+      - api_bd_pantheon
+    networks:
+      - cloudflared-network
+
+networks:
+  cloudflared-network:
+    driver: bridge
