@@ -1,3 +1,5 @@
-flask
-mysql-connector-python
-requests
+asyncmy
+aiohttp
+asyncio
+quart
+

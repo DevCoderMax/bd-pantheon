@@ -1,93 +1,73 @@
-from flask import Flask, jsonify
-import mysql.connector
-from mysql.connector import Error
-import requests
-import time
+from quart import Quart, jsonify
+import asyncmy
+import aiohttp
+import asyncio
+from asyncmy.cursors import DictCursor  # Importação adicionada
 
-app = Flask(__name__)
+app = Quart(__name__)
 
 # Configurações do banco de dados
 DB_CONFIG = {
     'host': 'dbserver.dev.f92a9e36-50c7-46cb-99f1-c31cb3846d61.drush.in',
     'user': 'pantheon',
     'password': 'iCNgNhkrX0H1jF8g9M2THkaXIOPe2QzR',
-    'database': 'pantheon',
-    'port': 12816
+    'db': 'pantheon',
+    'port': 12816,
+    'autocommit': True
 }
 
 # URL para ativar o sandbox
 SANDBOX_URL = 'https://dev-max-eternal.pantheonsite.io/'
 
-def tentar_conexao(max_tentativas=3):
-    for tentativa in range(max_tentativas):
-        try:
-            # Primeiro, tenta ativar o sandbox
-            response = requests.post(SANDBOX_URL)
-            if response.status_code != 200:
-                raise Exception(f"Falha ao ativar o sandbox. Status code: {response.status_code}")
-            
-            # Se o sandbox foi ativado com sucesso, tenta a conexão com o banco de dados
-            connection = mysql.connector.connect(**DB_CONFIG)
-            if connection.is_connected():
-                return connection
-        except (Error, requests.RequestException) as e:
-            print(f"Tentativa {tentativa + 1} falhou: {e}")
-            if tentativa < max_tentativas - 1:
-                time.sleep(2)  # Espera 2 segundos antes da próxima tentativa
-    
-    raise Exception("Falha ao conectar após várias tentativas")
+# Pool de conexões
+pool = None
+
+async def init_db_pool():
+    global pool
+    pool = await asyncmy.create_pool(**DB_CONFIG, maxsize=10)
+
+@app.before_serving
+async def startup():
+    await init_db_pool()
 
 @app.route('/ativar-sandbox', methods=['GET'])
-def ativar_sandbox():
-    try:
-        connection = tentar_conexao()
-        cursor = connection.cursor()
-        cursor.execute("SELECT DATABASE();")
-        db_info = cursor.fetchone()
-        return jsonify({
-            'status': 'Conexão com o banco de dados estabelecida',
-            'database': db_info[0]
-        }), 200
-    except Exception as e:
-        print(f"Erro ao ativar sandbox: {e}")
-        return jsonify({
-            'status': 'Erro',
-            'mensagem': 'Falha ao ativar o sandbox e conectar ao banco de dados',
-            'erro': str(e)
-        }), 500
-    finally:
-        if 'connection' in locals() and connection.is_connected():
-            cursor.close()
-            connection.close()
-
-def executar_com_tentativas(funcao, max_tentativas=2):
-    for tentativa in range(max_tentativas):
+async def ativar_sandbox():
+    async with aiohttp.ClientSession() as session:
         try:
-            return funcao()
+            async with session.post(SANDBOX_URL) as response:
+                if response.status != 200:
+                    raise Exception(f"Falha ao ativar o sandbox. Status code: {response.status}")
+            
+            async with pool.acquire() as connection:
+                async with connection.cursor() as cursor:
+                    await cursor.execute("SELECT DATABASE();")
+                    db_info = await cursor.fetchone()
+                    return jsonify({
+                        'status': 'Conexão com o banco de dados estabelecida',
+                        'database': db_info[0]
+                    }), 200
         except Exception as e:
-            print(f"Tentativa {tentativa + 1} falhou: {e}")
-            if tentativa == max_tentativas - 1:
-                raise
-            time.sleep(2)  # Espera 2 segundos antes da próxima tentativa
+            print(f"Erro ao ativar sandbox: {e}")
+            return jsonify({
+                'status': 'Erro',
+                'mensagem': 'Falha ao ativar o sandbox e conectar ao banco de dados',
+                'erro': str(e)
+            }), 500
 
 @app.route('/listar-tabelas', methods=['GET'])
-def listar_tabelas():
-    def _listar_tabelas():
-        connection = tentar_conexao()
-        cursor = connection.cursor()
-        cursor.execute("SHOW TABLES;")
-        tabelas = cursor.fetchall()
-        lista_tabelas = [tabela[0] for tabela in tabelas]
-        cursor.close()
-        connection.close()
-        return jsonify({
-            'status': 'Sucesso',
-            'tabelas': lista_tabelas
-        }), 200
-
+async def listar_tabelas():
     try:
-        return executar_com_tentativas(_listar_tabelas)
+        async with pool.acquire() as connection:
+            async with connection.cursor() as cursor:
+                await cursor.execute("SHOW TABLES;")
+                tabelas = await cursor.fetchall()
+                lista_tabelas = [tabela[0] for tabela in tabelas]
+                return jsonify({
+                    'status': 'Sucesso',
+                    'tabelas': lista_tabelas
+                }), 200
     except Exception as e:
+        print(f"Erro ao listar tabelas: {e}")
         return jsonify({
             'status': 'Erro',
             'mensagem': 'Falha ao listar tabelas do banco de dados',
@@ -95,27 +75,23 @@ def listar_tabelas():
         }), 500
 
 @app.route('/limpar-banco', methods=['POST'])
-def limpar_banco():
-    def _limpar_banco():
-        connection = tentar_conexao()
-        cursor = connection.cursor()
-        cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
-        cursor.execute("SHOW TABLES;")
-        tabelas = cursor.fetchall()
-        for tabela in tabelas:
-            cursor.execute(f"DROP TABLE IF EXISTS `{tabela[0]}`;")
-        cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
-        connection.commit()
-        cursor.close()
-        connection.close()
-        return jsonify({
-            'status': 'Sucesso',
-            'mensagem': 'Todas as tabelas foram removidas do banco de dados'
-        }), 200
-
+async def limpar_banco():
     try:
-        return executar_com_tentativas(_limpar_banco)
+        async with pool.acquire() as connection:
+            async with connection.cursor() as cursor:
+                await cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+                await cursor.execute("SHOW TABLES;")
+                tabelas = await cursor.fetchall()
+                drop_queries = [f"DROP TABLE IF EXISTS `{tabela[0]}`;" for tabela in tabelas]
+                await cursor.execute("; ".join(drop_queries))
+                await cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
+            await connection.commit()
+            return jsonify({
+                'status': 'Sucesso',
+                'mensagem': 'Todas as tabelas foram removidas do banco de dados'
+            }), 200
     except Exception as e:
+        print(f"Erro ao limpar banco: {e}")
         return jsonify({
             'status': 'Erro',
             'mensagem': 'Falha ao limpar o banco de dados',
@@ -123,34 +99,31 @@ def limpar_banco():
         }), 500
 
 @app.route('/info-tabela/<nome_tabela>', methods=['GET'])
-def info_tabela(nome_tabela):
-    def _info_tabela():
-        connection = tentar_conexao()
-        cursor = connection.cursor(dictionary=True)
-        cursor.execute(f"SHOW TABLES LIKE '{nome_tabela}'")
-        if not cursor.fetchone():
-            cursor.close()
-            connection.close()
-            return jsonify({
-                'status': 'Erro',
-                'mensagem': f'A tabela {nome_tabela} não existe'
-            }), 404
-        cursor.execute(f"DESCRIBE {nome_tabela}")
-        colunas = cursor.fetchall()
-        cursor.execute(f"SELECT * FROM {nome_tabela} LIMIT 5")
-        amostra_dados = cursor.fetchall()
-        cursor.close()
-        connection.close()
-        return jsonify({
-            'status': 'Sucesso',
-            'nome_tabela': nome_tabela,
-            'colunas': colunas,
-            'amostra_dados': amostra_dados
-        }), 200
-
+async def info_tabela(nome_tabela):
     try:
-        return executar_com_tentativas(_info_tabela)
+        async with pool.acquire() as connection:
+            async with connection.cursor(DictCursor) as cursor:
+                await cursor.execute(f"SHOW TABLES LIKE '{nome_tabela}'")
+                if not await cursor.fetchone():
+                    return jsonify({
+                        'status': 'Erro',
+                        'mensagem': f'A tabela {nome_tabela} não existe'
+                    }), 404
+
+                await cursor.execute(f"DESCRIBE {nome_tabela}")
+                colunas = await cursor.fetchall()
+                
+                await cursor.execute(f"SELECT * FROM {nome_tabela} LIMIT 5")
+                amostra_dados = await cursor.fetchall()
+                
+                return jsonify({
+                    'status': 'Sucesso',
+                    'nome_tabela': nome_tabela,
+                    'colunas': colunas,
+                    'amostra_dados': amostra_dados
+                }), 200
     except Exception as e:
+        print(f"Erro ao obter informações da tabela: {e}")
         return jsonify({
             'status': 'Erro',
             'mensagem': 'Falha ao obter informações da tabela',
