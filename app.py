@@ -1,4 +1,4 @@
-from quart import Quart, jsonify
+from quart import Quart, jsonify , request
 import asyncmy
 import aiohttp
 import asyncio
@@ -23,11 +23,23 @@ SANDBOX_URL = 'https://dev-max-eternal.pantheonsite.io/'
 pool = None
 
 async def init_db_pool():
+    """
+    Inicializa o pool de conexoes com o banco de dados.
+
+    O pool   criado com o tamanho maximo de 10 conexoes e o tamanho maximo de 10 conexoes.
+    """
     global pool
     pool = await asyncmy.create_pool(**DB_CONFIG, maxsize=10)
 
 @app.before_serving
 async def startup():
+    """
+    Inicializa o pool de conexoes com o banco de dados antes de
+    o servidor de API ser iniciado.
+
+    Esta fun o   chamada automaticamente pelo Quart antes de
+    o servidor ser iniciado.
+    """
     await init_db_pool()
 
 @app.route('/ativar-sandbox', methods=['GET'])
@@ -158,6 +170,48 @@ async def limpar_tabela(nome_tabela):
             'erro': str(e)
         }), 500
 
+@app.route('/criar-tabela', methods=['POST'])
+async def criar_tabela():
+    try:
+        dados = await request.get_json()
+        nome_tabela = dados.get('nome_tabela')
+        colunas = dados.get('colunas')
 
+        if not nome_tabela or not colunas:
+            return jsonify({
+                'status': 'Erro',
+                'mensagem': 'Nome da tabela e definição das colunas são obrigatórios'
+            }), 400
+
+        async with pool.acquire() as connection:
+            async with connection.cursor() as cursor:
+                # Verifica se a tabela já existe
+                await cursor.execute(f"SHOW TABLES LIKE '{nome_tabela}'")
+                if await cursor.fetchone():
+                    return jsonify({
+                        'status': 'Erro',
+                        'mensagem': f'A tabela {nome_tabela} já existe'
+                    }), 409
+
+                # Cria a query SQL para criar a tabela
+                colunas_sql = ', '.join([f"{coluna['nome']} {coluna['tipo']}" for coluna in colunas])
+                query = f"CREATE TABLE `{nome_tabela}` ({colunas_sql})"
+
+                # Executa a query para criar a tabela
+                await cursor.execute(query)
+            await connection.commit()
+
+        return jsonify({
+            'status': 'Sucesso',
+            'mensagem': f'Tabela {nome_tabela} criada com sucesso'
+        }), 201
+    except Exception as e:
+        print(f"Erro ao criar tabela: {e}")
+        return jsonify({
+            'status': 'Erro',
+            'mensagem': 'Falha ao criar a tabela',
+            'erro': str(e)
+        }), 500
+        
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5003)
