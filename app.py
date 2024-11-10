@@ -228,6 +228,26 @@ async def executar_sql():
                 'resultado': resultado
             }), 200
 
+# apagar tabela
+@app.route('/apagar-tabela/<nome_tabela>', methods=['POST'])
+async def apagar_tabela(nome_tabela):
+    try:
+        async with pool.acquire() as connection:
+            async with connection.cursor() as cursor:
+                await cursor.execute(f"DROP TABLE IF EXISTS `{nome_tabela}`")
+                await connection.commit()
+                return jsonify({
+                    'status': 'Sucesso',
+                    'mensagem': f'Tabela {nome_tabela} apagada com sucesso'
+                }), 200
+    except Exception as e:
+        print(f"Erro ao apagar tabela {nome_tabela}: {e}")
+        return jsonify({
+            'status': 'Erro',
+            'mensagem': f'Falha ao apagar a tabela {nome_tabela}',
+            'erro': str(e)
+        }), 500
+
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')

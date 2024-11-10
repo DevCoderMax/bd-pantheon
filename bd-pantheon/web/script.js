@@ -44,6 +44,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         <button class="btn btn-sm btn-danger" onclick="limparTabela('${tabela}')">
                             <i class="bi bi-trash"></i> Limpar
                         </button>
+                        <button class="btn btn-sm btn-danger" onclick="apagarTabela('${tabela}')">
+                            <i class="bi bi-trash"></i> Apagar
+                        </button>
                     </div>
                 `;
                 listaTabelas.appendChild(card);
@@ -161,10 +164,52 @@ async function verDetalhes(tabela) {
     try {
         const response = await fetch(`https://max-python.uvxtdw.easypanel.host/info-tabela/${tabela}`);
         const data = await response.json();
-        // Implementar visualização dos detalhes em um modal
-        console.log(data);
+        
+        if (data.status === 'Sucesso') {
+            // Preenche a tabela de estrutura
+            const estruturaBody = document.querySelector('#estruturaTabela tbody');
+            estruturaBody.innerHTML = '';
+            data.colunas.forEach(coluna => {
+                estruturaBody.innerHTML += `
+                    <tr>
+                        <td>${coluna.Field}</td>
+                        <td>${coluna.Type}</td>
+                        <td>${coluna.Null}</td>
+                        <td>${coluna.Key}</td>
+                        <td>${coluna.Default || ''}</td>
+                        <td>${coluna.Extra || ''}</td>
+                    </tr>
+                `;
+            });
+
+            // Preenche a tabela de dados
+            const dadosTable = document.querySelector('#dadosTabela');
+            if (data.amostra_dados && data.amostra_dados.length > 0) {
+                // Cria o cabeçalho
+                const headers = Object.keys(data.amostra_dados[0]);
+                dadosTable.querySelector('thead').innerHTML = `
+                    <tr>
+                        ${headers.map(h => `<th>${h}</th>`).join('')}
+                    </tr>
+                `;
+
+                // Preenche os dados
+                dadosTable.querySelector('tbody').innerHTML = data.amostra_dados.map(row => `
+                    <tr>
+                        ${headers.map(h => `<td>${row[h]}</td>`).join('')}
+                    </tr>
+                `).join('');
+            } else {
+                dadosTable.innerHTML = '<tr><td colspan="100%">Nenhum dado encontrado</td></tr>';
+            }
+
+            // Abre o modal
+            const modal = new bootstrap.Modal(document.getElementById('tabelaDetalhesModal'));
+            modal.show();
+        }
     } catch (error) {
         console.error('Erro ao ver detalhes:', error);
+        alert('Erro ao carregar detalhes da tabela');
     }
 }
 

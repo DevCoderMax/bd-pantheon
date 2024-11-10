@@ -27,6 +27,9 @@
             <button id="btnLimparBanco" class="menu-item">
                 <i class="bi bi-trash"></i> Limpar Banco
             </button>
+            <button id="btnApagarTabela" class="menu-item">
+                <i class="bi bi-trash"></i> Apagar Tabela
+            </button>
         </div>
     </div>
 
@@ -59,6 +62,43 @@
                 <button id="btnExecutar" class="btn btn-primary mt-2">Executar</button>
             </div>
             <div id="resultadoSQL" class="mt-3"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalhes da Tabela -->
+    <div class="modal fade" id="tabelaDetalhesModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Detalhes da Tabela</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>Estrutura da Tabela</h6>
+                    <div class="table-responsive">
+                        <table class="table" id="estruturaTabela">
+                            <thead>
+                                <tr>
+                                    <th>Campo</th>
+                                    <th>Tipo</th>
+                                    <th>Nulo</th>
+                                    <th>Chave</th>
+                                    <th>Padrão</th>
+                                    <th>Extra</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <h6 class="mt-4">Amostra de Dados</h6>
+                    <div class="table-responsive">
+                        <table class="table" id="dadosTabela">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

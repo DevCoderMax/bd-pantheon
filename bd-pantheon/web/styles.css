@@ -94,3 +94,21 @@ body {
 .table-card:hover {
     transform: scale(1.05);
 }
+
+.modal-lg {
+    max-width: 90%;
+}
+
+.table-responsive {
+    margin-bottom: 1rem;
+}
+
+#estruturaTabela, #dadosTabela {
+    margin-bottom: 0;
+}
+
+.modal-body h6 {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+}
