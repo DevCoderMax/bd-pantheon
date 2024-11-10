@@ -229,7 +229,7 @@ async def executar_sql():
             }), 200
 
 # apagar tabela
-@app.route('/apagar-tabela/<nome_tabela>', methods=['POST'])
+@app.route('/apagar-tabela/<nome_tabela>', methods=['GET'])
 async def apagar_tabela(nome_tabela):
     try:
         async with pool.acquire() as connection:
