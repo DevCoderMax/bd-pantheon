@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentação da API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            color: #333;
+        }
+        .endpoint {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        pre {
+            background: #eee;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        code {
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Documentação da API</h1>
+
+    <div class="endpoint">
+        <h2>GET /activate_sandbox</h2>
+        <p>Ativa o sandbox.</p>
+        <pre>Resposta: { "message": "Sandbox ativado." }</pre>
+        <h3>Exemplo de uso em Python:</h3>
+        <pre><code>import requests
+
+response = requests.get('http://localhost:5000/activate_sandbox')
+print(response.json())</code></pre>
+    </div>
+
+    <div class="endpoint">
+        <h2>GET /connect</h2>
+        <p>Tenta conectar ao banco de dados.</p>
+        <pre>Resposta: { "message": "Conexão estabelecida e encerrada." }</pre>
+        <h3>Exemplo de uso em Python:</h3>
+        <pre><code>import requests
+
+response = requests.get('http://localhost:5000/connect')
+print(response.json())</code></pre>
+    </div>
+
+    <div class="endpoint">
+        <h2>POST /execute_sql</h2>
+        <p>Executa um comando SQL.</p>
+        <pre>Corpo: { "command": "SEU_COMANDO_SQL_AQUI" }</pre>
+        <pre>Resposta: { "result": [...] }</pre>
+        <h3>Exemplo de uso em Python:</h3>
+        <pre><code>import requests
+
+command = {"command": "SELECT * FROM sua_tabela"}
+response = requests.post('http://localhost:5000/execute_sql', json=command)
+print(response.json())</code></pre>
+    </div>
+
+    <div class="endpoint">
+        <h2>GET /tables</h2>
+        <p>Retorna uma lista de todas as tabelas no banco de dados.</p>
+        <pre>Resposta: [ "tabela1", "tabela2", ... ]</pre>
+        <h3>Exemplo de uso em Python:</h3>
+        <pre><code>import requests
+
+response = requests.get('http://localhost:5000/tables')
+print(response.json())</code></pre>
+    </div>
+
+    <div class="endpoint">
+        <h2>DELETE /drop_tables</h2>
+        <p>Exclui todas as tabelas do banco de dados.</p>
+        <pre>Resposta: { "message": "Todas as tabelas foram excluídas com sucesso." }</pre>
+        <h3>Exemplo de uso em Python:</h3>
+        <pre><code>import requests
+
+response = requests.delete('http://localhost:5000/drop_tables')
+print(response.json())</code></pre>
+    </div>
+
+    <script>
+        // Aqui você pode adicionar funcionalidades JavaScript, se necessário
+    </script>
+</body>
+</html>
