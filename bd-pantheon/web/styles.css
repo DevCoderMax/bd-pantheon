@@ -112,3 +112,45 @@ body {
     margin-bottom: 1rem;
     color: var(--primary-color);
 }
+
+.coluna-item {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 1fr 0.5fr;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: start;
+}
+
+.coluna-item .form-check {
+    margin-top: 8px;
+}
+
+.connection-info {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.info-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.info-card h3 {
+    color: var(--primary-color);
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent-color);
+}
+
+.info-card .table th {
+    width: 150px;
+    color: var(--primary-color);
+}
+
+.badge {
+    padding: 8px 12px;
+    border-radius: 4px;
+}

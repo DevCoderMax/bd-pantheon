@@ -3,10 +3,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnListarTabelas = document.getElementById('btnListarTabelas');
     const btnCriarTabela = document.getElementById('btnCriarTabela');
     const btnExecutarSQL = document.getElementById('btnExecutarSQL');
+    const btnInfoConexao = document.getElementById('btnInfoConexao');
     const views = {
         tabelas: document.getElementById('tabelasView'),
         criarTabela: document.getElementById('criarTabelaView'),
-        executarSQL: document.getElementById('executarSQLView')
+        executarSQL: document.getElementById('executarSQLView'),
+        infoConexao: document.getElementById('infoConexaoView')
     };
 
     // Funções de navegação
@@ -22,6 +24,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     btnCriarTabela.addEventListener('click', () => showView('criarTabela'));
     btnExecutarSQL.addEventListener('click', () => showView('executarSQL'));
+    btnInfoConexao.addEventListener('click', () => {
+        showView('infoConexao');
+        carregarInfoConexao();
+    });
 
     // Carregar lista de tabelas
     async function carregarTabelas() {
@@ -66,26 +72,60 @@ document.addEventListener('DOMContentLoaded', function() {
         colunaDiv.className = 'coluna-item';
         colunaDiv.innerHTML = `
             <input type="text" class="form-control" placeholder="Nome da Coluna">
-            <select class="form-control">
-                <option value="VARCHAR(255)">VARCHAR</option>
+            <select class="form-control tipo-coluna">
+                <option value="ID">ID (Auto)</option>
+                <option value="VARCHAR">VARCHAR</option>
                 <option value="INT">INT</option>
                 <option value="TEXT">TEXT</option>
                 <option value="DATE">DATE</option>
+                <option value="FLOAT">FLOAT</option>
+                <option value="BOOLEAN">BOOLEAN</option>
+                <option value="DATETIME">DATETIME</option>
+                <option value="TIMESTAMP">TIMESTAMP</option>
+                <option value="JSON">JSON</option>
             </select>
+            <input type="number" class="form-control tamanho-campo" placeholder="Tamanho" min="1">
             <button type="button" class="btn btn-danger" onclick="this.parentElement.remove()">
                 <i class="bi bi-trash"></i>
             </button>
         `;
+
+        // Adiciona evento para mostrar/esconder campo de tamanho
+        const tipoSelect = colunaDiv.querySelector('.tipo-coluna');
+        const tamanhoInput = colunaDiv.querySelector('.tamanho-campo');
+        
+        tipoSelect.addEventListener('change', () => {
+            const tipo = tipoSelect.value;
+            if (tipo === 'VARCHAR' || tipo === 'INT') {
+                tamanhoInput.style.display = 'block';
+            } else {
+                tamanhoInput.style.display = 'none';
+                tamanhoInput.value = '';
+            }
+        });
+
+        // Esconde o campo de tamanho inicialmente se não for VARCHAR
+        if (tipoSelect.value !== 'VARCHAR' && tipoSelect.value !== 'INT') {
+            tamanhoInput.style.display = 'none';
+        }
+
         colunasContainer.appendChild(colunaDiv);
     });
 
     formCriarTabela.addEventListener('submit', async (e) => {
         e.preventDefault();
         const nomeTabela = document.getElementById('nomeTabela').value;
-        const colunas = Array.from(colunasContainer.children).map(coluna => ({
-            nome: coluna.querySelector('input').value,
-            tipo: coluna.querySelector('select').value
-        }));
+        const colunas = Array.from(colunasContainer.children).map(coluna => {
+            const tipo = coluna.querySelector('.tipo-coluna').value;
+            const tamanho = coluna.querySelector('.tamanho-campo').value;
+            
+            return {
+                nome: coluna.querySelector('input[type="text"]').value,
+                tipo: tipo === 'ID' ? 'INT AUTO_INCREMENT PRIMARY KEY' :
+                     (tipo === 'VARCHAR' || tipo === 'INT') && tamanho ? 
+                     `${tipo}(${tamanho})` : tipo
+            };
+        });
 
         try {
             const response = await fetch('https://max-python.uvxtdw.easypanel.host/criar-tabela', {
@@ -244,5 +284,36 @@ async function apagarTabela(tabela) {
         } catch (error) {
             console.error('Erro ao apagar tabela:', error);
         }
+    }
+}
+
+async function carregarInfoConexao() {
+    // Dados de conexão
+    const dbConfig = {
+        host: 'dbserver.dev.f92a9e36-50c7-46cb-99f1-c31cb3846d61.drush.in',
+        port: 12816,
+        db: 'pantheon',
+        user: 'pantheon'
+    };
+
+    // Preenche os campos com as informações
+    document.getElementById('dbHost').textContent = dbConfig.host;
+    document.getElementById('dbPort').textContent = dbConfig.port;
+    document.getElementById('dbName').textContent = dbConfig.db;
+    document.getElementById('dbUser').textContent = dbConfig.user;
+
+    // Verifica o status da conexão
+    try {
+        const response = await fetch('https://max-python.uvxtdw.easypanel.host/listar-tabelas');
+        const data = await response.json();
+        
+        if (data.status === 'Erro') {
+            document.getElementById('dbStatus').innerHTML = '<span class="badge bg-danger">Desconectado</span>';
+        } else {
+            document.getElementById('dbStatus').innerHTML = '<span class="badge bg-success">Conectado</span>';
+        }
+    } catch (error) {
+        document.getElementById('dbStatus').innerHTML = '<span class="badge bg-danger">Desconectado</span>';
+        console.error('Erro ao verificar status da conexão:', error);
     }
 }

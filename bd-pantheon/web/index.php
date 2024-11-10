@@ -27,6 +27,9 @@
             <button id="btnLimparBanco" class="menu-item">
                 <i class="bi bi-trash"></i> Limpar Banco
             </button>
+            <button id="btnInfoConexao" class="menu-item">
+                <i class="bi bi-info-circle"></i> Informações da Conexão
+            </button>
         </div>
     </div>
 
@@ -59,6 +62,39 @@
                 <button id="btnExecutar" class="btn btn-primary mt-2">Executar</button>
             </div>
             <div id="resultadoSQL" class="mt-3"></div>
+        </div>
+
+        <div id="infoConexaoView" class="content-section hidden">
+            <h2>Informações da Conexão</h2>
+            <div class="connection-info">
+                <div class="info-card">
+                    <h3>Dados do Servidor</h3>
+                    <table class="table">
+                        <tbody>
+                            <tr>
+                                <th>Host:</th>
+                                <td id="dbHost"></td>
+                            </tr>
+                            <tr>
+                                <th>Porta:</th>
+                                <td id="dbPort"></td>
+                            </tr>
+                            <tr>
+                                <th>Banco de Dados:</th>
+                                <td id="dbName"></td>
+                            </tr>
+                            <tr>
+                                <th>Usuário:</th>
+                                <td id="dbUser"></td>
+                            </tr>
+                            <tr>
+                                <th>Status:</th>
+                                <td id="dbStatus"><span class="badge bg-success">Conectado</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
