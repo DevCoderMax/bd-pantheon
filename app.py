@@ -228,5 +228,12 @@ async def executar_sql():
                 'resultado': resultado
             }), 200
 
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    return response
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5003)
