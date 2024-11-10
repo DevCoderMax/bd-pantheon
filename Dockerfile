@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 
 # Etapa 6: Expor a porta que sua aplicação vai usar (Ex: 5000 para Flask)
-EXPOSE 5000
+EXPOSE 5003
 
 # Etapa 7: Definir o comando para rodar a aplicação (no caso de um app Flask)
 CMD ["python", "app.py"]
