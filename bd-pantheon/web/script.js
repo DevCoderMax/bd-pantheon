@@ -229,3 +229,20 @@ async function limparTabela(tabela) {
         }
     }
 }
+
+async function apagarTabela(tabela) {
+    if (confirm(`Tem certeza que deseja apagar a tabela ${tabela}?`)) {
+        try {
+            const response = await fetch(`https://max-python.uvxtdw.easypanel.host/apagar-tabela/${tabela}`, {
+                method: 'GET'
+            });
+            const data = await response.json();
+            if (data.status === 'Sucesso') {
+                alert('Tabela apagada com sucesso!');
+                carregarTabelas();
+            }
+        } catch (error) {
+            console.error('Erro ao apagar tabela:', error);
+        }
+    }
+}

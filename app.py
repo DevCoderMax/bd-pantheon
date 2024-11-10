@@ -16,7 +16,7 @@ DB_CONFIG = {
     'autocommit': True
 }
 
-# URL para ativar o sandbox
+# URL para ativar o sandbox caso a conexão com o banco de dados falhar
 SANDBOX_URL = 'https://dev-max-eternal.pantheonsite.io/'
 
 # Pool de conexões
@@ -41,6 +41,37 @@ async def startup():
     o servidor ser iniciado.
     """
     await init_db_pool()
+
+async def tentar_reconexao():
+    """Tenta reconectar ao banco de dados através do sandbox"""
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(SANDBOX_URL) as response:
+                if response.status != 200:
+                    raise Exception(f"Falha ao ativar o sandbox. Status code: {response.status}")
+            await init_db_pool()
+            return True
+        except Exception as e:
+            print(f"Erro na reconexão: {e}")
+            return False
+
+def tratamento_conexao():
+    """Decorator para tratar erros de conexão com o banco de dados"""
+    def decorator(func):
+        async def wrapper(*args, **kwargs):
+            try:
+                return await func(*args, **kwargs)
+            except (asyncmy.Error, AttributeError) as e:
+                print(f"Erro de conexão: {e}")
+                if await tentar_reconexao():
+                    try:
+                        return await func(*args, **kwargs)
+                    except Exception as e:
+                        raise Exception(f"Falha após tentativa de reconexão: {e}")
+                else:
+                    raise Exception("Não foi possível reconectar ao banco de dados")
+        return wrapper
+    return decorator
 
 @app.route('/ativar-sandbox', methods=['GET'])
 async def ativar_sandbox():
@@ -67,6 +98,7 @@ async def ativar_sandbox():
             }), 500
 
 @app.route('/listar-tabelas', methods=['GET'])
+@tratamento_conexao()
 async def listar_tabelas():
     try:
         async with pool.acquire() as connection:
@@ -111,6 +143,7 @@ async def limpar_banco():
         }), 500
 
 @app.route('/info-tabela/<nome_tabela>', methods=['GET'])
+@tratamento_conexao()
 async def info_tabela(nome_tabela):
     try:
         async with pool.acquire() as connection:
@@ -143,6 +176,7 @@ async def info_tabela(nome_tabela):
         }), 500
 
 @app.route('/limpar-tabela/<nome_tabela>', methods=['POST'])
+@tratamento_conexao()
 async def limpar_tabela(nome_tabela):
     try:
         async with pool.acquire() as connection:
@@ -171,6 +205,7 @@ async def limpar_tabela(nome_tabela):
         }), 500
 
 @app.route('/criar-tabela', methods=['POST'])
+@tratamento_conexao()
 async def criar_tabela():
     try:
         dados = await request.get_json()
@@ -215,6 +250,7 @@ async def criar_tabela():
 
 #executar comando sql e retornar o resultado
 @app.route('/executar-sql', methods=['POST'])
+@tratamento_conexao()
 async def executar_sql():
     dados = await request.get_json()
     comando = dados.get('comando')
@@ -230,6 +266,7 @@ async def executar_sql():
 
 # apagar tabela
 @app.route('/apagar-tabela/<nome_tabela>', methods=['GET'])
+@tratamento_conexao()
 async def apagar_tabela(nome_tabela):
     try:
         async with pool.acquire() as connection:
