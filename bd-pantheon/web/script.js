@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Carregar lista de tabelas
     async function carregarTabelas() {
         try {
-            const response = await fetch('http://localhost:5003/listar-tabelas');
+            const response = await fetch('https://max-python.uvxtdw.easypanel.host/listar-tabelas');
             const data = await response.json();
             
             const listaTabelas = document.getElementById('listaTabelas');
@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }));
 
         try {
-            const response = await fetch('http://localhost:5003/criar-tabela', {
+            const response = await fetch('https://max-python.uvxtdw.easypanel.host/criar-tabela', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     btnExecutar.addEventListener('click', async () => {
         try {
-            const response = await fetch('http://localhost:5003/executar-sql', {
+            const response = await fetch('https://max-python.uvxtdw.easypanel.host/executar-sql', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -135,6 +135,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Event Listener para limpar o banco
+    const btnLimparBanco = document.getElementById('btnLimparBanco');
+    btnLimparBanco.addEventListener('click', async () => {
+        if (confirm('Tem certeza que deseja limpar todo o banco de dados?')) {
+            try {
+                const response = await fetch('https://max-python.uvxtdw.easypanel.host/limpar-banco', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                alert(data.mensagem);
+                carregarTabelas();
+            } catch (error) {
+                console.error('Erro ao limpar banco:', error);
+            }
+        }
+    });
+
     // Carregar tabelas inicialmente
     carregarTabelas();
 });
@@ -142,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Funções globais
 async function verDetalhes(tabela) {
     try {
-        const response = await fetch(`http://localhost:5003/info-tabela/${tabela}`);
+        const response = await fetch(`https://max-python.uvxtdw.easypanel.host/info-tabela/${tabela}`);
         const data = await response.json();
         // Implementar visualização dos detalhes em um modal
         console.log(data);
@@ -154,7 +171,7 @@ async function verDetalhes(tabela) {
 async function limparTabela(tabela) {
     if (confirm(`Tem certeza que deseja limpar a tabela ${tabela}?`)) {
         try {
-            const response = await fetch(`http://localhost:5003/limpar-tabela/${tabela}`, {
+            const response = await fetch(`https://max-python.uvxtdw.easypanel.host/limpar-tabela/${tabela}`, {
                 method: 'POST'
             });
             const data = await response.json();

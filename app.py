@@ -3,6 +3,7 @@ import asyncmy
 import aiohttp
 import asyncio
 from asyncmy.cursors import DictCursor  # Importação adicionada
+from flask_cors import CORS
 
 app = Quart(__name__)
 
@@ -229,4 +230,5 @@ async def executar_sql():
             }), 200
 
 if __name__ == '__main__':
+    CORS(app)
     app.run(debug=True, host='0.0.0.0', port=5003)

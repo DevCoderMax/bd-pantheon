@@ -2,4 +2,5 @@ asyncmy
 aiohttp
 asyncio
 quart
-
+flask
+flask-cors
