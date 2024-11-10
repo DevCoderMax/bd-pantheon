@@ -1,8 +1,9 @@
-from quart import Quart, jsonify , request
+from quart import Quart, jsonify , request, Response
 import asyncmy
 import aiohttp
 import asyncio
 from asyncmy.cursors import DictCursor  # Importação adicionada
+from functools import wraps
 
 app = Quart(__name__)
 
@@ -42,6 +43,60 @@ async def startup():
     """
     await init_db_pool()
 
+async def tentar_reconexao():
+    """Tenta reconectar ao banco de dados através do sandbox"""
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(SANDBOX_URL) as response:
+                if response.status != 200:
+                    raise Exception(f"Falha ao ativar o sandbox. Status code: {response.status}")
+            await init_db_pool()
+            return True
+        except Exception as e:
+            print(f"Erro na reconexão: {e}")
+            return False
+
+def cors_response(response):
+    """Adiciona headers CORS à resposta"""
+    if not isinstance(response, Response):
+        response = Response(response)
+    
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Access-Control-Max-Age'] = '86400'  # 24 horas
+    return response
+
+def tratamento_conexao():
+    """Decorator para tratar erros de conexão com o banco de dados"""
+    def decorator(func):
+        @wraps(func)  # Preserva os metadados da função original
+        async def wrapper(*args, **kwargs):
+            try:
+                response = await func(*args, **kwargs)
+                return cors_response(response)  # Aplica CORS na resposta
+            except (asyncmy.Error, AttributeError) as e:
+                print(f"Erro de conexão: {e}")
+                if await tentar_reconexao():
+                    try:
+                        response = await func(*args, **kwargs)
+                        return cors_response(response)  # Aplica CORS na resposta
+                    except Exception as e:
+                        erro = jsonify({
+                            'status': 'Erro',
+                            'mensagem': f'Falha após tentativa de reconexão: {str(e)}'
+                        }), 500
+                        return cors_response(erro)
+                else:
+                    erro = jsonify({
+                        'status': 'Erro',
+                        'mensagem': 'Não foi possível reconectar ao banco de dados'
+                    }), 500
+                    return cors_response(erro)
+        return wrapper
+    return decorator
+
 @app.route('/ativar-sandbox', methods=['GET'])
 async def ativar_sandbox():
     async with aiohttp.ClientSession() as session:
@@ -67,6 +122,7 @@ async def ativar_sandbox():
             }), 500
 
 @app.route('/listar-tabelas', methods=['GET'])
+@tratamento_conexao()
 async def listar_tabelas():
     try:
         async with pool.acquire() as connection:
@@ -87,6 +143,7 @@ async def listar_tabelas():
         }), 500
 
 @app.route('/limpar-banco', methods=['POST'])
+@tratamento_conexao()
 async def limpar_banco():
     try:
         async with pool.acquire() as connection:
@@ -111,6 +168,7 @@ async def limpar_banco():
         }), 500
 
 @app.route('/info-tabela/<nome_tabela>', methods=['GET'])
+@tratamento_conexao()
 async def info_tabela(nome_tabela):
     try:
         async with pool.acquire() as connection:
@@ -143,6 +201,7 @@ async def info_tabela(nome_tabela):
         }), 500
 
 @app.route('/limpar-tabela/<nome_tabela>', methods=['POST'])
+@tratamento_conexao()
 async def limpar_tabela(nome_tabela):
     try:
         async with pool.acquire() as connection:
@@ -171,6 +230,7 @@ async def limpar_tabela(nome_tabela):
         }), 500
 
 @app.route('/criar-tabela', methods=['POST'])
+@tratamento_conexao()
 async def criar_tabela():
     try:
         dados = await request.get_json()
@@ -215,6 +275,7 @@ async def criar_tabela():
 
 #executar comando sql e retornar o resultado
 @app.route('/executar-sql', methods=['POST'])
+@tratamento_conexao()
 async def executar_sql():
     dados = await request.get_json()
     comando = dados.get('comando')
@@ -230,6 +291,7 @@ async def executar_sql():
 
 # apagar tabela
 @app.route('/apagar-tabela/<nome_tabela>', methods=['GET'])
+@tratamento_conexao()
 async def apagar_tabela(nome_tabela):
     try:
         async with pool.acquire() as connection:
@@ -248,12 +310,12 @@ async def apagar_tabela(nome_tabela):
             'erro': str(e)
         }), 500
 
-@app.after_request
-def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-    return response
+# Adicione uma rota específica para OPTIONS
+@app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
+@app.route('/<path:path>', methods=['OPTIONS'])
+async def handle_options(path):
+    response = Response('')
+    return cors_response(response)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5003)
