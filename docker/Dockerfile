@@ -1,20 +1,17 @@
-# Use uma imagem base do Python
-FROM python:3.10
+# Usa uma imagem base leve com Python 3.11
+FROM python:3.11-slim
 
-# Defina o diretório de trabalho dentro do contêiner
+# Define o diretório de trabalho
 WORKDIR /app
 
-# Copie o arquivo de dependências
-COPY requirements.txt .
+# Copia os arquivos necessários para o diretório de trabalho no container
+COPY .. .
 
-# Instale as dependências da aplicação
-RUN pip install -r requirements.txt
+# Instala as dependências necessárias
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copie o código da aplicação para o contêiner
-COPY . .
+# Expor a porta padrão que o Quart usa (geralmente 5000)
+EXPOSE 5000
 
-# Exponha a porta 5003 (a porta usada pela aplicação Flask)
-EXPOSE 5003
-
-# Comando para rodar a aplicação
+# Comando para rodar o servidor
 CMD ["python", "app.py"]
