@@ -27,9 +27,6 @@
             <button id="btnLimparBanco" class="menu-item">
                 <i class="bi bi-trash"></i> Limpar Banco
             </button>
-            <button id="btnApagarTabela" class="menu-item">
-                <i class="bi bi-trash"></i> Apagar Tabela
-            </button>
         </div>
     </div>
 
