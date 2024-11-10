@@ -212,6 +212,22 @@ async def criar_tabela():
             'mensagem': 'Falha ao criar a tabela',
             'erro': str(e)
         }), 500
-        
+
+#executar comando sql e retornar o resultado
+@app.route('/executar-sql', methods=['POST'])
+async def executar_sql():
+    dados = await request.get_json()
+    comando = dados.get('comando')
+
+    async with pool.acquire() as connection:
+        async with connection.cursor() as cursor:
+            await cursor.execute(comando)
+            resultado = await cursor.fetchall()
+            return jsonify({
+                'status': 'Sucesso',
+                'resultado': resultado
+            }), 200
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5003)

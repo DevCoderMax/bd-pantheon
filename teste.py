@@ -1,6 +1,14 @@
-import requests
+import aiohttp
+import asyncio
 
-# Modifique o comando SQL para selecionar todos os dados da tabela 'users'
-command = {"command": "SELECT * FROM users"}
-response = requests.post('http://localhost:5000/execute_sql', json=command)
-print(response.json())
+async def executar_consulta():
+    # Comando SQL para selecionar todos os dados da tabela 'users'
+    comando = {"comando": "SELECT * FROM users"}
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post('http://localhost:5003/executar-sql', json=comando) as response:
+            resultado = await response.json()
+            print(resultado)
+
+# Executa a consulta assíncrona
+asyncio.run(executar_consulta())
