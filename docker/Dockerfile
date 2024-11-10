@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 5000
 
 # Comando para rodar o servidor
-CMD ["python", "app.py"]
+CMD ["python", "api/app.py"]
