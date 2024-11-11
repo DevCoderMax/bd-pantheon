@@ -7,6 +7,7 @@ from asyncmy.cursors import DictCursor
 from functools import wraps
 from typing import Optional, Dict, List, Any
 from pydantic import BaseModel
+import asyncio
 
 app = FastAPI()
 
@@ -50,15 +51,26 @@ class ComandoSQLRequest(BaseModel):
 async def init_db_pool():
     """Inicializa o pool de conexões com o banco de dados."""
     global pool
-    pool = await asyncmy.create_pool(**DB_CONFIG, maxsize=10)
+    try:
+        pool = await asyncmy.create_pool(**DB_CONFIG, maxsize=10)
+    except Exception as e:
+        print(f"Erro ao criar pool inicial: {e}")
+        await tentar_reconexao()
 
 async def tentar_reconexao():
     """Tenta reconectar ao banco de dados através do sandbox"""
+    global pool
     try:
+        print("Tentando ativar sandbox...")
         response = requests.get(SANDBOX_URL)
         if response.status_code != 200:
             raise Exception(f"Falha ao ativar o sandbox. Status code: {response.status_code}")
-        await init_db_pool()
+        
+        # Aguarda um momento para o sandbox inicializar
+        await asyncio.sleep(5)
+        
+        # Tenta criar o pool novamente
+        pool = await asyncmy.create_pool(**DB_CONFIG, maxsize=10)
         return True
     except Exception as e:
         print(f"Erro na reconexão: {e}")
@@ -97,7 +109,25 @@ def tratamento_conexao():
 
 @app.on_event("startup")
 async def startup_event():
-    await init_db_pool()
+    """Evento de inicialização do FastAPI"""
+    retry_count = 0
+    max_retries = 3
+    
+    while retry_count < max_retries:
+        try:
+            await init_db_pool()
+            if pool is not None:
+                print("Conexão com banco de dados estabelecida com sucesso!")
+                return
+        except Exception as e:
+            print(f"Tentativa {retry_count + 1} falhou: {e}")
+            retry_count += 1
+            if retry_count < max_retries:
+                await asyncio.sleep(5)  # Espera 5 segundos antes de tentar novamente
+    
+    # Se todas as tentativas falharem
+    print("Não foi possível estabelecer conexão com o banco de dados após várias tentativas")
+    raise Exception("Falha na inicialização do banco de dados")
 
 @app.get("/ativar-sandbox")
 async def ativar_sandbox():
