@@ -37,60 +37,24 @@ async def startup():
     """
     Inicializa o pool de conexoes com o banco de dados antes de
     o servidor de API ser iniciado.
+
+    Esta fun o   chamada automaticamente pelo Quart antes de
+    o servidor ser iniciado.
     """
-    try:
-        await init_db_pool()
-    except Exception as e:
-        print(f"Erro na conexão inicial: {e}")
-        print("Tentando ativar o sandbox antes de continuar...")
-        
-        # Tenta ativar o sandbox
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(SANDBOX_URL, timeout=30) as response:
-                    if response.status != 200:
-                        raise Exception(f"Falha ao ativar sandbox. Status: {response.status}")
-                
-                # Aguarda o sandbox inicializar
-                await asyncio.sleep(5)
-                
-                # Tenta conectar novamente
-                await init_db_pool()
-                print("Conexão estabelecida com sucesso após ativar sandbox!")
-                
-            except Exception as sandbox_error:
-                print(f"Erro ao ativar sandbox: {sandbox_error}")
-                # Permite que a aplicação inicie mesmo com erro
-                # O tratamento de conexão tentará reconectar quando necessário
-                print("Iniciando aplicação mesmo com erro de conexão inicial...")
+    await init_db_pool()
 
 async def tentar_reconexao():
     """Tenta reconectar ao banco de dados através do sandbox"""
-    global pool
-    try:
-        if pool:
-            await pool.close()
-            
-        async with aiohttp.ClientSession() as session:
-            async with session.post(SANDBOX_URL, timeout=30) as response:
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(SANDBOX_URL) as response:
                 if response.status != 200:
-                    print(f"Falha ao ativar o sandbox. Status: {response.status}")
-                    return False
-                
-            await asyncio.sleep(5)
-            
-            pool = await asyncmy.create_pool(**DB_CONFIG, maxsize=10)
-            
-            async with pool.acquire() as connection:
-                async with connection.cursor() as cursor:
-                    await cursor.execute("SELECT 1")
-                    
-            print("Reconexão bem sucedida!")
+                    raise Exception(f"Falha ao ativar o sandbox. Status code: {response.status}")
+            await init_db_pool()
             return True
-            
-    except Exception as e:
-        print(f"Erro detalhado na reconexão: {str(e)}")
-        return False
+        except Exception as e:
+            print(f"Erro na reconexão: {e}")
+            return False
 
 def cors_response(response):
     """Adiciona headers CORS à resposta"""
@@ -107,34 +71,29 @@ def cors_response(response):
 def tratamento_conexao():
     """Decorator para tratar erros de conexão com o banco de dados"""
     def decorator(func):
-        @wraps(func)
+        @wraps(func)  # Preserva os metadados da função original
         async def wrapper(*args, **kwargs):
             try:
                 response = await func(*args, **kwargs)
-                # Verifica se a resposta é uma tupla (response, status_code)
-                if isinstance(response, tuple):
-                    return cors_response(jsonify(response[0])), response[1]
-                return cors_response(jsonify(response))
+                return cors_response(response)  # Aplica CORS na resposta
             except (asyncmy.Error, AttributeError) as e:
                 print(f"Erro de conexão: {e}")
                 if await tentar_reconexao():
                     try:
                         response = await func(*args, **kwargs)
-                        if isinstance(response, tuple):
-                            return cors_response(jsonify(response[0])), response[1]
-                        return cors_response(jsonify(response))
+                        return cors_response(response)  # Aplica CORS na resposta
                     except Exception as e:
-                        erro = {
+                        erro = jsonify({
                             'status': 'Erro',
                             'mensagem': f'Falha após tentativa de reconexão: {str(e)}'
-                        }
-                        return cors_response(jsonify(erro)), 500
+                        }), 500
+                        return cors_response(erro)
                 else:
-                    erro = {
+                    erro = jsonify({
                         'status': 'Erro',
                         'mensagem': 'Não foi possível reconectar ao banco de dados'
-                    }
-                    return cors_response(jsonify(erro)), 500
+                    }), 500
+                    return cors_response(erro)
         return wrapper
     return decorator
 
