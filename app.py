@@ -107,29 +107,34 @@ def cors_response(response):
 def tratamento_conexao():
     """Decorator para tratar erros de conexão com o banco de dados"""
     def decorator(func):
-        @wraps(func)  # Preserva os metadados da função original
+        @wraps(func)
         async def wrapper(*args, **kwargs):
             try:
                 response = await func(*args, **kwargs)
-                return cors_response(response)  # Aplica CORS na resposta
+                # Verifica se a resposta é uma tupla (response, status_code)
+                if isinstance(response, tuple):
+                    return cors_response(jsonify(response[0])), response[1]
+                return cors_response(jsonify(response))
             except (asyncmy.Error, AttributeError) as e:
                 print(f"Erro de conexão: {e}")
                 if await tentar_reconexao():
                     try:
                         response = await func(*args, **kwargs)
-                        return cors_response(response)  # Aplica CORS na resposta
+                        if isinstance(response, tuple):
+                            return cors_response(jsonify(response[0])), response[1]
+                        return cors_response(jsonify(response))
                     except Exception as e:
-                        erro = jsonify({
+                        erro = {
                             'status': 'Erro',
                             'mensagem': f'Falha após tentativa de reconexão: {str(e)}'
-                        }), 500
-                        return cors_response(erro)
+                        }
+                        return cors_response(jsonify(erro)), 500
                 else:
-                    erro = jsonify({
+                    erro = {
                         'status': 'Erro',
                         'mensagem': 'Não foi possível reconectar ao banco de dados'
-                    }), 500
-                    return cors_response(erro)
+                    }
+                    return cors_response(jsonify(erro)), 500
         return wrapper
     return decorator
 
