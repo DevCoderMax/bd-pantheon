@@ -4,3 +4,4 @@ asyncio
 quart
 flask
 flask-cors
+fastapi
