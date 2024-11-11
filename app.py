@@ -37,11 +37,32 @@ async def startup():
     """
     Inicializa o pool de conexoes com o banco de dados antes de
     o servidor de API ser iniciado.
-
-    Esta fun o   chamada automaticamente pelo Quart antes de
-    o servidor ser iniciado.
     """
-    await init_db_pool()
+    try:
+        await init_db_pool()
+    except Exception as e:
+        print(f"Erro na conexão inicial: {e}")
+        print("Tentando ativar o sandbox antes de continuar...")
+        
+        # Tenta ativar o sandbox
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(SANDBOX_URL, timeout=30) as response:
+                    if response.status != 200:
+                        raise Exception(f"Falha ao ativar sandbox. Status: {response.status}")
+                
+                # Aguarda o sandbox inicializar
+                await asyncio.sleep(5)
+                
+                # Tenta conectar novamente
+                await init_db_pool()
+                print("Conexão estabelecida com sucesso após ativar sandbox!")
+                
+            except Exception as sandbox_error:
+                print(f"Erro ao ativar sandbox: {sandbox_error}")
+                # Permite que a aplicação inicie mesmo com erro
+                # O tratamento de conexão tentará reconectar quando necessário
+                print("Iniciando aplicação mesmo com erro de conexão inicial...")
 
 async def tentar_reconexao():
     """Tenta reconectar ao banco de dados através do sandbox"""
