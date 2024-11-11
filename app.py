@@ -45,16 +45,31 @@ async def startup():
 
 async def tentar_reconexao():
     """Tenta reconectar ao banco de dados através do sandbox"""
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post(SANDBOX_URL) as response:
+    global pool
+    try:
+        if pool:
+            await pool.close()
+            
+        async with aiohttp.ClientSession() as session:
+            async with session.post(SANDBOX_URL, timeout=30) as response:
                 if response.status != 200:
-                    raise Exception(f"Falha ao ativar o sandbox. Status code: {response.status}")
-            await init_db_pool()
+                    print(f"Falha ao ativar o sandbox. Status: {response.status}")
+                    return False
+                
+            await asyncio.sleep(5)
+            
+            pool = await asyncmy.create_pool(**DB_CONFIG, maxsize=10)
+            
+            async with pool.acquire() as connection:
+                async with connection.cursor() as cursor:
+                    await cursor.execute("SELECT 1")
+                    
+            print("Reconexão bem sucedida!")
             return True
-        except Exception as e:
-            print(f"Erro na reconexão: {e}")
-            return False
+            
+    except Exception as e:
+        print(f"Erro detalhado na reconexão: {str(e)}")
+        return False
 
 def cors_response(response):
     """Adiciona headers CORS à resposta"""
