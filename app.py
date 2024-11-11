@@ -55,7 +55,7 @@ async def init_db_pool():
 async def tentar_reconexao():
     """Tenta reconectar ao banco de dados através do sandbox"""
     try:
-        response = requests.post(SANDBOX_URL)
+        response = requests.get(SANDBOX_URL)
         if response.status_code != 200:
             raise Exception(f"Falha ao ativar o sandbox. Status code: {response.status_code}")
         await init_db_pool()
@@ -102,7 +102,7 @@ async def startup_event():
 @app.get("/ativar-sandbox")
 async def ativar_sandbox():
     try:
-        response = requests.post(SANDBOX_URL)
+        response = requests.get(SANDBOX_URL)
         if response.status_code != 200:
             raise Exception(f"Falha ao ativar o sandbox. Status code: {response.status_code}")
         
