@@ -5,3 +5,4 @@ quart
 flask
 flask-cors
 fastapi
+requests
